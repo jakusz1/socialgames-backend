@@ -5,7 +5,6 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from faker import Faker
 from pytrends.request import TrendReq
-from django.contrib.auth.models import User
 
 from game.models import Round, Lang, Status
 from socialgames.settings import GAME_SETTINGS
@@ -36,7 +35,7 @@ def start_game(game, *args):
     for arg in args:
         Round.objects.create(game=game, text=arg)
 
-    game.status = "IDL"
+    game.status = Status.IDL.name
     game.save()
 
 
@@ -49,7 +48,7 @@ def send_question(game):
     if game_round:
         send(game.uri, 'new_round', game_round.to_json())
         game_round.done = True
-        game_round.game.status = "ANS"
+        game_round.game.status = Status.ANS.name
         game_round.save()
         return True
     return False
@@ -90,17 +89,13 @@ def get_points(game):
                 answer.player.score += int(scores.get(answer.text))
                 answer.save()
                 answer.player.save()
-
-            print(json.dumps([answer.to_json() for answer in answers]))
             send(game.uri, "results_graph", '{' + scrapped_df.to_json(orient="split")[1:-1] + '}',
                  only_screen=True)
             send(game.uri, "results_answers", json.dumps([answer.to_json() for answer in answers]),
                  only_screen=True)
             send(game.uri, "send_players_silent", game.to_json(), only_screen=True)
-
             game_round.delete()
             return True
-
         else:
             send(game.uri, "results_graph", "{}",
                  only_screen=True)

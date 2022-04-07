@@ -9,7 +9,6 @@ from socialgames.settings import GAME_SETTINGS
 class GameConsumer(JsonWebsocketConsumer):
 
     def connect(self):
-
         async_to_sync(self.channel_layer.group_add)(
             self.__get_uri(),
             self.channel_name
