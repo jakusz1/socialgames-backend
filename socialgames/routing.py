@@ -8,7 +8,7 @@ from game.consumers import GameConsumer
 application = ProtocolTypeRouter({
     "websocket": AuthMiddlewareStack(
         URLRouter([
-            re_path(r"^ws/(?P<device_type>\w*)/(?P<uri>\w*)$", GameConsumer)
+            re_path(r"^ws/(?P<device_type>\w*)/(?P<uri>\w*)$", GameConsumer.as_asgi())
         ])
     ),
 })

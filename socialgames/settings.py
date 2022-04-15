@@ -19,7 +19,7 @@ SECRET_KEY = config('SECRET_KEY')
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '192.168.1.111']
+ALLOWED_HOSTS = ['localhost', '0.0.0.0', config('HOST')]
 
 redis_host = os.environ.get('REDIS_HOST', 'localhost')
 
