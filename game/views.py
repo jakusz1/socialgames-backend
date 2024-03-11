@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -31,10 +33,19 @@ class GameStartView(APIView):
 class GameView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        newest_game = Game.objects.filter(owner=user, status=Status.PRE.name).first()
+
+        return Response({
+            'status': 'SUCCESS',
+            'game': newest_game.to_json() if newest_game else None
+        })
+
     def post(self, request, *args, **kwargs):
         user = request.user
         game = Game.objects.create(owner=user, lang=request.data['lang'][-2:])
-        GamePlayer.objects.create(user=user, game=game)
+        GamePlayer.objects.create(user=user, game=game, color=0)
 
         return Response({
             'status': 'SUCCESS', 'uri': game.uri,
@@ -55,7 +66,9 @@ class GameView(APIView):
         if game.status != "PRE" and not player.exists() or game.players.count() == 5:
             return Response(status=status.HTTP_403_FORBIDDEN)
 
-        game.players.get_or_create(user=user, game=game)
+        if not player.exists():
+            GamePlayer.objects.create(user=user, game=game, color=game.players.count())
+
         services.send(uri, 'update_players_list', game.to_json())
         return Response({
             'status': 'SUCCESS',
@@ -104,9 +117,10 @@ class FirstRoundView(APIView):
 
     def delete(self, request, *args, **kwargs):
         game = Game.objects.get(uri=kwargs['uri'])
-        services.get_points(game)
+        players_stats = services.get_points(game)
 
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({'status': 'SUCCESS',
+                         'players': players_stats})
 
 
 class AnswerView(APIView):

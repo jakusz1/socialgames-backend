@@ -1,10 +1,11 @@
-import datetime
 import json
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from faker import Faker
-from pytrends.request import TrendReq
+
+from game.daily_trends import DailyTrends
+from game.selenium_trends import SeleniumTrends
 
 from game.models import Round, Lang, Status
 from socialgames.settings import GAME_SETTINGS
@@ -27,13 +28,23 @@ def send(uri, command, data, only_screen=False, only_controllers=False):
                                                  }})
 
 
-def start_game(game, *args):
-    if not args:
-        faker = Faker(Lang[game.lang].value)
-        args = faker.words(nb=10, ext_word_list=None)
+def start_game(game):
+    faker = Faker(Lang[game.lang].value)
+    faker_words = faker.words(nb=6)
+    daily_words = DailyTrends().get_words(game.lang, 3)
 
-    for arg in args:
-        Round.objects.create(game=game, text=arg)
+    # round 1
+    Round.objects.create(game=game, text=faker_words[0], multiplier=1)
+    Round.objects.create(game=game, text=faker_words[1], multiplier=1)
+    Round.objects.create(game=game, text=daily_words[0], multiplier=1)
+    # round 2
+    Round.objects.create(game=game, text=faker_words[2], multiplier=2)
+    Round.objects.create(game=game, text=faker_words[3], multiplier=2)
+    Round.objects.create(game=game, text=daily_words[1], multiplier=2)
+    # round 3
+    Round.objects.create(game=game, text=faker_words[4], multiplier=3)
+    Round.objects.create(game=game, text=faker_words[5], multiplier=3)
+    Round.objects.create(game=game, text=daily_words[2], multiplier=3)
 
     game.status = Status.IDL.name
     game.save()
@@ -59,54 +70,36 @@ def get_points(game):
     if game_round:
         game.status = Status.IDL.name
         game.save()
-        pytrends = TrendReq(hl=game.lang, tz=0)
 
         answers = game_round.answers.order_by("player_id").all()
         answers_text_list = [answer.text for answer in answers]
 
-        now = datetime.datetime.now()
-        date = now - datetime.timedelta(days=365)
+        data = SeleniumTrends().get_data(answers_text_list, game.lang)
 
-        try:
-            pytrends.build_payload(answers_text_list, cat=0,
-                                   timeframe=date.strftime("%Y-%m-%d") + ' ' + now.strftime("%Y-%m-%d"),
-                                   geo=game.lang,
-                                   gprop='')
-            scrapped_df = pytrends.interest_over_time()
-        except:
-            send(game.uri, "results_graph", "{}",
-                 only_screen=True)
-            send(game.uri, "results_answers", json.dumps([answer.to_json() for answer in answers]),
-                 only_screen=True)
-            game_round.delete()
-            return False
-
-        if scrapped_df.size != 0:
-            scrapped_df = scrapped_df.drop(columns='isPartial')[:-1]
-            scores = dict(zip(scrapped_df.columns.values.tolist(), scrapped_df.iloc[-1]))
+        if not data.empty:
+            scores = dict(zip(data.columns.values.tolist(), data.iloc[-1]))
             for answer in answers:
-                answer.score = int(scores.get(answer.text))
-                answer.player.score += int(scores.get(answer.text))
+                multiplied_score = int(int(scores.get(answer.text)) * game_round.multiplier)
+                answer.score = multiplied_score
+                answer.player.score += multiplied_score
                 answer.save()
                 answer.player.save()
-            send(game.uri, "results_graph", '{' + scrapped_df.to_json(orient="split")[1:-1] + '}',
-                 only_screen=True)
-            send(game.uri, "results_answers", json.dumps([answer.to_json() for answer in answers]),
-                 only_screen=True)
+            send(game.uri, "results_graph", data.to_json(orient="split"), only_screen=True)
+            send(game.uri, "results_answers", json.dumps([answer.to_json() for answer in answers]), only_screen=True)
             send(game.uri, "send_players_silent", game.to_json(), only_screen=True)
             game_round.delete()
-            return True
+            return [player.to_json() for player in game.players.order_by("-score").all()]
         else:
             send(game.uri, "results_graph", "{}",
                  only_screen=True)
             send(game.uri, "results_answers", json.dumps([answer.to_json() for answer in answers]),
                  only_screen=True)
             game_round.delete()
-            return False
+            return [player.to_json() for player in game.players.order_by("-score").all()]
 
     send(game.uri, 'go_back', {})
     game.delete()
-    return False
+    return [player.to_json() for player in game.players.order_by("-score").all()]
 
 
 def end_game(game):

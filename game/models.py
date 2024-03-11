@@ -42,6 +42,7 @@ class Game(models.Model):
     status = models.CharField(max_length=3,
                               choices=Status.choices(),
                               default=Status.PRE.name)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def to_json(self):
         return {"id": self.id,
@@ -49,7 +50,9 @@ class Game(models.Model):
                 "status": self.status,
                 "players": [player.to_json()
                             for player in self.players.all()],
-                "rounds": self.rounds.count()}
+                "rounds": self.rounds.count(),
+                "uri": self.uri,
+                "created_at": self.created_at.isoformat()}
 
 
 class GamePlayer(models.Model):
@@ -58,6 +61,7 @@ class GamePlayer(models.Model):
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     score = models.IntegerField(default=0)
+    color = models.IntegerField(default=0)
 
     def to_json(self):
         return {"id": self.id,
@@ -65,16 +69,18 @@ class GamePlayer(models.Model):
                 "email": self.user.email,
                 "score": self.score,
                 "total_score": self.user.userstats.total_score,
-                "total_won": self.user.userstats.total_won}
+                "total_won": self.user.userstats.total_won,
+                "color": self.color}
 
 
 class Round(models.Model):
     game = models.ForeignKey(Game, related_name="rounds", on_delete=models.CASCADE)
     text = models.TextField(max_length=50)
     done = models.BooleanField(default=False)
+    multiplier = models.FloatField(default=1)
 
     def to_json(self):
-        return {"id": self.id, "text": self.text, "done": self.done}
+        return {"id": self.id, "text": self.text, "done": self.done, "multiplier": self.multiplier}
 
 
 class Answer(models.Model):
