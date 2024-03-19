@@ -5,7 +5,8 @@ import time
 from functools import cache
 
 from selenium import webdriver
-import chromedriver_binary
+from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
@@ -36,7 +37,7 @@ class SeleniumTrends:
         self._logger = logging.getLogger('selenium_trends')
         options = webdriver.ChromeOptions()
         options.add_argument(f"user-data-dir={CHROME_USER_DATA}")
-        self._driver = webdriver.Chrome(options=options)
+        self._driver = webdriver.Chrome(options=options, service=ChromeService(ChromeDriverManager().install()))
         self._file_path = _get_file_path()
 
     def __del__(self):
