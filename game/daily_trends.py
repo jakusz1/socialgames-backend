@@ -17,7 +17,7 @@ class DailyTrends:
             rss = RSSParser.parse(requests.get(rss_url).text)
             data = []
             for item in rss.channel.items:
-                data.append(re.findall(r"\w{2,}", item.title.content))
+                data += re.findall(r"\w{2,}", item.title.content)
             self.data[geo] = data
 
     def get_words(self, geo, k):
