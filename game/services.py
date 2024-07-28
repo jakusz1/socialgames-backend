@@ -72,9 +72,7 @@ def get_points(game):
         game.save()
 
         answers = game_round.answers.order_by("player_id").all()
-        answers_text_list = [answer.text for answer in answers]
-
-        data = SeleniumTrends().get_data(answers_text_list, game.lang)
+        data = SeleniumTrends().get_data([answer.text for answer in answers], game.lang)
 
         if not data.empty:
             scores = dict(zip(data.columns.values.tolist(), data.iloc[-1]))

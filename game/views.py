@@ -134,7 +134,7 @@ class AnswerView(APIView):
         return Response({'id': game_round.id, 'answers': answers})
 
     def post(self, request, *args, **kwargs):
-        text = request.data['text']
+        text = request.data['text'].strip()
         user = request.user
         game_round = Round.objects.get(id=kwargs['round_id'])
         player = GamePlayer.objects.filter(user=user, game=game_round.game).first()

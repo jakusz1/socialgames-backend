@@ -16,7 +16,7 @@ import re
 
 CHROME_USER_DATA = "C:\\Users\\jakus\\AppData\\Local\\Google\\Chrome\\User Data"
 DOWNLOAD_XPATH = "//trends-widget[@widget-name='TIMESERIES']//button[contains(@class, 'export')][1]"
-TIMEOUT = 10
+TIMEOUT = 5
 
 
 def _get_file_path():
@@ -37,11 +37,15 @@ class SeleniumTrends:
         self._logger = logging.getLogger('selenium_trends')
         options = webdriver.ChromeOptions()
         options.add_argument(f"user-data-dir={CHROME_USER_DATA}")
-        self._driver = webdriver.Chrome(options=options, service=ChromeService(ChromeDriverManager().install()))
+        self._driver = webdriver.Chrome(options=options)
         self._file_path = _get_file_path()
 
     def __del__(self):
         self._driver.quit()
+
+    def setup(self):
+        self._driver.get(f"about:blank")
+        self._driver.set_window_rect(x=0, y=0, width=1000, height=400)
 
     def get_data(self, prompts, geo):
         data = pd.DataFrame()
